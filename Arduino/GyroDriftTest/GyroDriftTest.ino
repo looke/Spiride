@@ -8,6 +8,15 @@ const int GyroSelectPin_1 = 10;
 double rate = 0.0;
 
 int count_0_999 = 0;
+int count_0_145 = 0;
+int count_0_140 = 0;
+int count_0_135 = 0;
+int count_0_130 = 0;
+int count_0_125 = 0;
+int count_0_120 = 0;
+int count_0_115 = 0;
+int count_0_110 = 0;
+int count_0_105 = 0;
 int count_0_100 = 0;
 int count_0_095 = 0;
 int count_0_090 = 0;
@@ -51,8 +60,21 @@ int count_085_0 = 0;
 int count_090_0 = 0;
 int count_095_0 = 0;
 int count_100_0 = 0;
+int count_105_0 = 0;
+int count_110_0 = 0;
+int count_115_0 = 0;
+int count_120_0 = 0;
+int count_125_0 = 0;
+int count_130_0 = 0;
+int count_135_0 = 0;
+int count_140_0 = 0;
+int count_145_0 = 0;
 int count_999_0 = 0;
 
+double rate_1 = 0.0;
+double rate_2 = 0.0;
+double rate_abs_1 = 0.0;
+double rate_abs_2 = 0.0;
 
 void setup()
 {
@@ -76,10 +98,12 @@ void setup()
 void loop() 
 {
   // put your main code here, to run repeatedly:
-  double rate_1 = readRATE(1);
-  double rate_2 = readRATE(2);
-  double rate_abs_1 = 0.0;
-  double rate_abs_2 = 0.0;
+  //double rate = readRATE(2);
+  
+  rate_1 = readRATE(1)+0.02;
+  rate_2 = readRATE(2)+0.2;
+  rate_abs_1 = rate_1;
+  rate_abs_2 = rate_2;
   double rate = 0.0;
   if(rate_1 < 0)
   {
@@ -99,9 +123,45 @@ void loop()
     rate = rate_1;
   }
   
-  if(rate <= -1.0)
+  if(rate <= -1.45)
   {
     count_999_0++;
+  }
+  if(-1.45 < rate && rate <= -1.4)
+  {
+    count_145_0++;
+  }
+  if(-1.4 < rate && rate <= -1.35)
+  {
+    count_140_0++;
+  }
+  if(-1.35 < rate && rate <= -1.3)
+  {
+    count_135_0++;
+  }
+  if(-1.3 < rate && rate <= -1.25)
+  {
+    count_130_0++;
+  }
+  if(-1.25 < rate && rate <= -1.2)
+  {
+    count_125_0++;
+  }
+  if(-1.2 < rate && rate <= -1.15)
+  {
+    count_120_0++;
+  }
+  if(-1.15 < rate && rate <= -1.1)
+  {
+    count_115_0++;
+  }
+  if(-1.1 < rate && rate <= -1.05)
+  {
+    count_110_0++;
+  }
+  if(-1.05 < rate && rate <= -1.0)
+  {
+    count_105_0++;
   }
   else if (-1.0 < rate && rate <= -0.95)
   {
@@ -268,13 +328,76 @@ void loop()
   {
     count_0_100++;
   }
-  else if (1.0 <= rate)
+  else if (1.0 <= rate && rate < 1.05)
+  {
+    count_0_105++;
+  }
+  else if (1.05 <= rate && rate < 1.1)
+  {
+    count_0_110++;
+  }
+  else if (1.1 <= rate && rate < 1.15)
+  {
+    count_0_115++;
+  }
+  else if (1.15 <= rate && rate < 1.2)
+  {
+    count_0_120++;
+  }
+  else if (1.2 <= rate && rate < 1.25)
+  {
+    count_0_125++;
+  }
+  else if (1.25 <= rate && rate < 1.3)
+  {
+    count_0_130++;
+  }
+  else if (1.3 <= rate && rate < 1.35)
+  {
+    count_0_135++;
+  }
+  else if (1.35 <= rate && rate < 1.4)
+  {
+    count_0_140++;
+  }
+  else if (1.4 <= rate && rate < 1.45)
+  {
+    count_0_145++;
+  }
+  else if (1.45 <= rate)
   {
     count_0_999++;
   }
   
-  Serial.print("(-~,-1.0] : ");
+  Serial.print("(-~,-1.45] : ");
   Serial.print(count_999_0);
+  Serial.print("\t");
+  Serial.print("(-1.45,-1.4] : ");
+  Serial.print(count_145_0);
+  Serial.print("\t");
+  Serial.print("(-1.4,-1.35] : ");
+  Serial.print(count_140_0);
+  Serial.print("\t");
+  Serial.print("(-1.35,-1.3] : ");
+  Serial.print(count_135_0);
+  Serial.print("\t");
+  Serial.print("(-1.3,-1.25] : ");
+  Serial.print(count_130_0);
+  Serial.print("\t");
+  Serial.print("(-1.25,-1.2] : ");
+  Serial.print(count_125_0);
+  Serial.print("\t");
+  Serial.print("(-1.2,-1.15] : ");
+  Serial.print(count_120_0);
+  Serial.print("\t");
+  Serial.print("(-1.15,-1.1] : ");
+  Serial.print(count_115_0);
+  Serial.print("\t");
+  Serial.print("(-1.1,-1.05] : ");
+  Serial.print(count_110_0);
+  Serial.print("\t");
+  Serial.print("(-1.05,-1.0] : ");
+  Serial.print(count_105_0);
   Serial.print("\t");
   Serial.print("(-1.0,-0.95] : ");
   Serial.print(count_100_0);
@@ -397,7 +520,34 @@ void loop()
   Serial.print("[0.95,1.0) : ");
   Serial.print(count_0_100);
   Serial.print("\t");
-  Serial.print("[1.0,~) : ");
+  Serial.print("[1.0,1.05) : ");
+  Serial.print(count_0_105);
+  Serial.print("\t");
+  Serial.print("[1.05,1.1) : ");
+  Serial.print(count_0_110);
+  Serial.print("\t");
+  Serial.print("[1.1,1.15) : ");
+  Serial.print(count_0_115);
+  Serial.print("\t");
+  Serial.print("[1.15,1.2) : ");
+  Serial.print(count_0_120);
+  Serial.print("\t");
+  Serial.print("[1.2,1.25) : ");
+  Serial.print(count_0_125);
+  Serial.print("\t");
+  Serial.print("[1.25,1.3) : ");
+  Serial.print(count_0_130);
+  Serial.print("\t");
+  Serial.print("[1.3,1.35) : ");
+  Serial.print(count_0_135);
+  Serial.print("\t");
+  Serial.print("[1.35,1.4) : ");
+  Serial.print(count_0_140);
+  Serial.print("\t");
+  Serial.print("[1.4,1.45) : ");
+  Serial.print(count_0_145);
+  Serial.print("\t");
+  Serial.print("[1.45,~) : ");
   Serial.println(count_0_999);
   
   Serial.println("--------------------------");
