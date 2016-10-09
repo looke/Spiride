@@ -79,11 +79,12 @@ void loop()
   //rate = readGyroValue_L3G4200D();
   
   degree = readAccValue_SCA830();
-  rate = readGyroValue_ADXRS453Z_Comb();
-  
+  //rate = readGyroValue_ADXRS453Z_Comb();
+  rate_1 = readGyroValue_ADXRS453Z(Gyro_1);
+  rate_2 = readGyroValue_ADXRS453Z(Gyro_2);
   dt = double(micros() - timer)/1000000;
   //pre_degree = pitch + rate*dt;
-  pitch = bk.getAngle(degree,rate,dt);  // Calculate the angle using the Kalman filter
+  pitch = bk.getAngle(degree,rate_1,rate_2,dt);  // Calculate the angle using the Kalman filter
   timer = micros(); 
 
   
@@ -98,8 +99,11 @@ void loop()
   dtostrf(degree, 6, 4, temp); 
   String str_degree = String(temp);
 
-  dtostrf(rate, 6, 4, temp); 
-  String str_rate = String(temp);
+  dtostrf(rate_1, 6, 4, temp); 
+  String str_rate_1 = String(temp);
+
+  dtostrf(rate_2, 6, 4, temp); 
+  String str_rate_2 = String(temp);
   
   dtostrf(dt, 6, 4, temp);
   String str_dt = String(temp);
@@ -116,7 +120,7 @@ void loop()
   String str_K0 = String(K0);
   String str_K1 = String(K1);
   String state = String(currentState);
-  outputContent = "State:" + state +";degree:"+str_degree + ";rate:" + str_rate + ";dt:" + str_dt + ";pitch:" + str_pitch + ";bias:" + str_bias + ";K0:" + str_K0 + ";K1:" + str_K1 + ";BAngle:" + str_basicAngle;
+  outputContent = "State:" + state +";degree:"+str_degree + ";rate_1:" + str_rate_1 + ";rate_2:" + str_rate_2 +";dt:" + str_dt + ";pitch:" + str_pitch + ";bias:" + str_bias + ";K0:" + str_K0 + ";K1:" + str_K1 + ";BAngle:" + str_basicAngle;
   Serial.println(outputContent);
 
 
@@ -425,6 +429,7 @@ double readGyroValue_ADXRS453Z_Comb()
   {
     abs_rate_2 = 0-rate_2;
   }
+
   
   if(abs_rate_1 > abs_rate_2)
   {
@@ -434,6 +439,9 @@ double readGyroValue_ADXRS453Z_Comb()
   {
     tempRate = rate_1;
   }
+
+
+  
   return tempRate;
 }
 

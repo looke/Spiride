@@ -52,8 +52,8 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  rate_1 = readRATE(1)+0.11;
-  rate_2 = readRATE(2)+0.22;
+  rate_1 = readRATE(1)+0.02;
+  rate_2 = readRATE(2)+0.15;
   rate_abs_1 = rate_1;
   rate_abs_2 = rate_2;
   rate = 0.0;
@@ -155,9 +155,9 @@ void loop() {
   Serial.print(total_diff_value);
   Serial.print("\t");
   
-  Serial.print("Totle Loop : ");
-  Serial.print(total_loop_time);
-  Serial.print("\t");
+  //Serial.print("Totle Loop : ");
+  //Serial.print(total_loop_time);
+  //Serial.print("\t");
   Serial.print("Totle Overhold : ");
   Serial.print(total_overHold_time);
   Serial.print("\t");
@@ -175,7 +175,7 @@ void loop() {
   Serial.print("Quadruple OverHold : ");
   Serial.print(quadruple_overHold_time);
   Serial.print("\t");
-  Serial.print("More than triple : ");
+  Serial.print("More than Quadruple : ");
   Serial.println(more_overHold_time);
   
 }

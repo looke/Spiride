@@ -1,16 +1,3 @@
-/* Copyright (C) 2012 Kristian Lauszus, TKJ Electronics. All rights reserved.
- This software may be distributed and modified under the terms of the GNU
- General Public License version 2 (GPL2) as published by the Free Software
- Foundation and appearing in the file GPL2.TXT included in the packaging of
- this file. Please note that GPL2 Section 2[b] requires that all works based
- on this software must also be made publicly available under the terms of
- the GPL2 ("Copyleft").
- Contact information
- -------------------
- Kristian Lauszus, TKJ Electronics
- Web      :  http://www.tkjelectronics.com
- e-mail   :  kristianl@tkjelectronics.com
- */
 #include "SpirideKalman.h"
 
 Kalman::Kalman() {
@@ -48,15 +35,45 @@ Kalman::Kalman() {
 
 // The angle should be in degrees and the rate should be in degrees per second and the delta time in seconds
 //newAngle: ACC sensor angle
-//newRate:  Gyro Sensor rate
-float Kalman::getAngle(float newAngle, float newRate, float dt) {
+//newRate_1:  Gyro1 Sensor rate
+//newRate_2:  Gyro2 Sensor rate
+float Kalman::getAngle(float newAngle, float newRate_1, float newRate_2, float dt) {
     // KasBot V2  -  Kalman filter module - http://www.x-firm.com/?page_id=145
     // Modified by Kristian Lauszus
     // See my blog post for more information: http://blog.tkjelectronics.dk/2012/09/a-practical-approach-to-kalman-filter-and-how-to-implement-it
 
     // Discrete Kalman filter time update equations - Time Update ("Predict")
     // Update xhat - Project the state ahead
-    
+	newRate_1 = newRate_1 + 0.02;
+	newRate_2 = newRate_2 + 0.15;
+	
+    float newRate = 0.0;
+	float newRate_forRotate = 0.0;
+	
+	float abs_newRate_1 = newRate_1;
+	float abs_newRate_2 = newRate_2;
+	
+	if(newRate_1<0)
+	{
+		abs_newRate_1 = 0-newRate_1;
+	}
+	
+	if(newRate_2<0)
+	{
+		abs_newRate_2 = 0-newRate_2;
+	}
+	//比较绝对值大小，大值用于旋转态，小值用于其他状态
+	if(abs_newRate_1 > abs_newRate_2)
+	{
+		newRate = newRate_2;
+		newRate_forRotate = newRate_1;
+	}
+	else
+	{
+		newRate = newRate_1;
+		newRate_forRotate = newRate_2;
+	}
+	
     //Multi-State Kalman
     currentState = HUGE_ACCELERATE_STATE;
     //Calc the diff between newAngle(From ACC sensor) and the old pitch
@@ -105,11 +122,11 @@ float Kalman::getAngle(float newAngle, float newRate, float dt) {
     //如果Gyro取值连续3次都超过静态漂移区间，则进入Rotate状态，并将前3次角度变化结果合并到最终结果。
     //recent_rate记录最近3次的Rate取值之和，以便后续计算使用。
     //bigDriftTime 记录Gyro取值超过漂移区间的次数，每当Gyro取值落入漂移区间时，bigDriftTime都要归零
-      //---首先需要判断Gyro Rate取值是否在[-1.1, 1.0]区间，如果不在该区间，将
-    if(newRate<=-1.1 || newRate>=1.0) 
+      //---首先需要判断Gyro Rate取值是否在[-0.5, 0.5]区间，如果不在该区间，将
+    if(newRate<=-0.9 || newRate>=0.9) 
     {
     	bigDriftTime++;
-    	recent_rate += newRate;
+    	recent_rate += newRate_forRotate;
     }
     else
     {
@@ -184,10 +201,10 @@ float Kalman::getAngle(float newAngle, float newRate, float dt) {
     else if(currentState == HUGE_ACCELERATE_STATE) //in HUGE_ACCELERATE_STATE case : basicAngle is not change
     {
     	rate_afterBias = newRate - bias;
-    	if(rate_afterBias <-1.4 || rate_afterBias >1.2)
-    	{
-    		basicAngle = basicAngle + dt * rate_afterBias;
-    	}
+    	//if(rate_afterBias <-1.4 || rate_afterBias >1.2)
+    	//{
+    	//	basicAngle = basicAngle + dt * rate_afterBias;
+    	//}
     	angle_temp = angle + dt * rate_afterBias;
     	y = basicAngle - angle_temp;
     }
@@ -195,10 +212,10 @@ float Kalman::getAngle(float newAngle, float newRate, float dt) {
     {
     	if(oldState!=ROTATE_STATE) //假如是从其他状态进入Rotate状态，需要在计算角度值时加入补偿
     	{
-    		angle = angle + dt*(first_rotate_rateplus - newRate); //补偿前两次没有计算的Rate
+    		angle = angle + dt*(first_rotate_rateplus - newRate_forRotate); //补偿前两次没有计算的Rate
     	}
     	//rate_afterBias = newRate - basicBias;
-    	rate_afterBias = newRate; //ROTATE_STATE: no bias for rate
+    	rate_afterBias = newRate_forRotate; //ROTATE_STATE: no bias for rate
     	basicAngle = angle + dt * rate_afterBias;
     	rate_afterBias = newRate - bias;
     	angle_temp = angle + dt * rate_afterBias;
