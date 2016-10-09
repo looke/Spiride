@@ -6,8 +6,12 @@
 #include "ADXRS453Z.h"
 //#include "BasicKalman.h"
 #include "SpirideKalman.h"
-const int GyroSelectPin = 10;
-const int AccSelectPin = 9;
+const int GyroSelectPin_1 = 10;
+const int GyroSelectPin_2 = 9;
+const int AccSelectPin = 8;
+
+const int Gyro_1 = 1;
+const int Gyro_2 = 2;
 
 Kalman bk;
 unsigned long timer;
@@ -30,8 +34,8 @@ void setup() {
   Serial.begin(115200);
   //SPI读取初始化
   pinMode(AccSelectPin, OUTPUT);
-  pinMode(GyroSelectPin, OUTPUT);
-
+  pinMode(GyroSelectPin_1, OUTPUT);
+  pinMode(GyroSelectPin_2, OUTPUT);
   //SPI读取初始化
   SPI.begin();
   SPI.setBitOrder(MSBFIRST);
@@ -39,13 +43,14 @@ void setup() {
   //SPI.setDataMode(SPI_MODE3);//L3G4200D
   SPI.setDataMode(SPI_MODE0); //SCA830
   digitalWrite(AccSelectPin, HIGH); //disable the device
-  digitalWrite(GyroSelectPin, HIGH); //disable the device
+  digitalWrite(GyroSelectPin_1, HIGH); //disable the device
+  digitalWrite(GyroSelectPin_2, HIGH); //disable the device
   delay(200);
   //setupACC_ADXL345();
   //setupGyro_L3G4200D();
   setupACC_SCA830();
-  setupGyro_ADXRS453Z();
-  
+  setupGyro_ADXRS453Z(Gyro_1);
+  setupGyro_ADXRS453Z(Gyro_2);
   delay(1000); //give device time to init
 
   basicBias = calcGyroBasicBias();
@@ -262,8 +267,18 @@ void setupACC_SCA830()
   
 }
 
-void setupGyro_ADXRS453Z()
+void setupGyro_ADXRS453Z(int Gyro)
 {
+  if(Gyro == Gyro_1)
+  {
+    GyroSelectPin = GyroSelectPin_1;
+  }
+
+  if(Gyro == Gyro_2)
+  {
+    GyroSelectPin = GyroSelectPin_2;
+  }
+  
   digitalWrite(GyroSelectPin, LOW);
   byte Start_4 = SPI.transfer(Init_4);
   byte Start_3 = SPI.transfer(Init_3); 
