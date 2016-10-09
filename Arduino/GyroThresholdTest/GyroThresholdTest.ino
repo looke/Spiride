@@ -17,7 +17,15 @@ int total_loop_time = 0;
 int total_overHold_time = 0;
 int double_overHold_time = 0;
 int triple_overHold_time = 0;
+int quadruple_overHold_time = 0;
 int more_overHold_time = 0;
+
+double rate_1 = 0.0;
+double rate_2 = 0.0;
+double rate_abs_1 = 0.0;
+double rate_abs_2 = 0.0;
+
+double total_diff_value = 0.0;
 
 void setup() {
   // put your setup code here, to run once:
@@ -36,7 +44,7 @@ void setup() {
   setupADXRS453(1);
   setupADXRS453(2);
   
-  threshold = 0.9;
+  threshold = 0.5;
   threshold_neg = 0 - threshold;
   Serial.print("Threshold : ");
   Serial.println(threshold);
@@ -44,19 +52,36 @@ void setup() {
 
 void loop() {
   // put your main code here, to run repeatedly:
-  double rate_1 = readRATE(1);
-  double rate_2 = readRATE(2);
-
-
-  double rate = 0.0;
-
+  rate_1 = readRATE(1)+0.11;
+  rate_2 = readRATE(2)+0.22;
+  rate_abs_1 = rate_1;
+  rate_abs_2 = rate_2;
+  rate = 0.0;
+  
+  if(rate_1 < 0)
+  {
+    rate_abs_1 = 0-rate_1;
+  }
+  if(rate_2 < 0)
+  {
+    rate_abs_2 = 0-rate_2;
+  }
+  
+  if(rate_abs_1 > rate_abs_2)
+  {
+    rate = rate_2;
+  }
+  else
+  {
+    rate = rate_1;
+  }
   
   total_loop_time++;
   if( rate <= threshold_neg || threshold <= rate )
   {
     total_overHold_time++;
     temp_big_drift_time++;
-    
+    total_diff_value = total_diff_value + rate;
 
     if(temp_big_drift_time==2)
     {
@@ -84,7 +109,21 @@ void loop() {
         temp_big_drift_time = 0;
       }
     }
-    if(temp_big_drift_time>3)
+    
+    if(temp_big_drift_time==4)
+    {
+      tempMultiResult = oldRate * rate;
+      if(tempMultiResult > 0)
+      {
+        quadruple_overHold_time++;
+      }
+      else
+      {
+        temp_big_drift_time = 0;
+      }
+    }
+    
+    if(temp_big_drift_time>4)
     {
       tempMultiResult = oldRate * rate;
       if(tempMultiResult > 0)
@@ -102,8 +141,18 @@ void loop() {
     temp_big_drift_time = 0;
   }
   oldRate = rate;
+  Serial.print("Rate1 : ");
+  Serial.print(rate_1);
+  Serial.print("\t");
+  Serial.print("Rate2 : ");
+  Serial.print(rate_2);
+  Serial.print("\t");
   Serial.print("Rate : ");
   Serial.print(rate);
+  Serial.print("\t");
+
+  Serial.print("Totle Overhold Rate: ");
+  Serial.print(total_diff_value);
   Serial.print("\t");
   
   Serial.print("Totle Loop : ");
@@ -112,7 +161,7 @@ void loop() {
   Serial.print("Totle Overhold : ");
   Serial.print(total_overHold_time);
   Serial.print("\t");
-  
+
   Serial.print("Temp Drift : ");
   Serial.print(temp_big_drift_time);
   Serial.print("\t");
@@ -122,6 +171,9 @@ void loop() {
   Serial.print("\t");
   Serial.print("Triple OverHold : ");
   Serial.print(triple_overHold_time);
+  Serial.print("\t");
+  Serial.print("Quadruple OverHold : ");
+  Serial.print(quadruple_overHold_time);
   Serial.print("\t");
   Serial.print("More than triple : ");
   Serial.println(more_overHold_time);
