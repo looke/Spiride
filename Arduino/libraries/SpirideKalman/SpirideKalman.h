@@ -58,6 +58,8 @@ private:
     float first_rotate_rateplus;
     ///高值偏移的次数，用来判断是否进入Rotate模式
     int bigDriftTime;
+    ///静态偏移的次数，用来判断是否退出Rotate模式
+    int staticDriftTime;
 };
 
 #endif

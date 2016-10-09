@@ -31,6 +31,8 @@ Kalman::Kalman() {
     ///高值偏移的次数，用来判断是否进入Rotate模式
     bigDriftTime = 0;
     
+    ///静态偏移的次数，用来判断是否退出Rotate模式
+    staticDriftTime = 0;
 };
 
 // The angle should be in degrees and the rate should be in degrees per second and the delta time in seconds
@@ -47,7 +49,7 @@ float Kalman::getAngle(float newAngle, float newRate_1, float newRate_2, float d
 	newRate_1 = newRate_1 + 0.02;
 	newRate_2 = newRate_2 + 0.15;
 	
-    float newRate = 0.0;
+  float newRate = 0.0;
 	float newRate_forRotate = 0.0;
 	
 	float abs_newRate_1 = newRate_1;
@@ -118,36 +120,101 @@ float Kalman::getAngle(float newAngle, float newRate_1, float newRate_2, float d
     
     
     //--------------下列代码判断是否进入rotate状态 -----------------------
-    //原理：判断Gyro取值是否连续三个循环都超过静态漂移区间[-1.1, 1.0]
-    //如果Gyro取值连续3次都超过静态漂移区间，则进入Rotate状态，并将前3次角度变化结果合并到最终结果。
-    //recent_rate记录最近3次的Rate取值之和，以便后续计算使用。
+    //原理：判断Gyro取值是否连续4个循环都超过静态漂移区间[-0.5, 0.5]并且每次Gyro的绝对值都连续递增
+    //如果Gyro取值连续4次都超过静态漂移区间，则进入Rotate状态，并将前3次角度变化结果合并到最终结果。
+    //recent_rate记录最近4次的Rate取值之和，以便后续计算使用。
     //bigDriftTime 记录Gyro取值超过漂移区间的次数，每当Gyro取值落入漂移区间时，bigDriftTime都要归零
-      //---首先需要判断Gyro Rate取值是否在[-0.5, 0.5]区间，如果不在该区间，将
-    if(newRate<=-0.9 || newRate>=0.9) 
+      //---首先需要判断Gyro Rate取值是否在[-0.5, 0.5]区间，
+    
+    
+    if(oldState==ROTATE_STATE) //假如前一次循环已经是Rotate状态，则需要检测退出Rotate状态的条件
     {
-    	bigDriftTime++;
-    	recent_rate += newRate_forRotate;
-    }
-    else
-    {
-    	bigDriftTime=0;
-    	recent_rate=0.0;
+    	if (newRate<=-0.23 || newRate>=0.23)
+    	{
+    		currentState = ROTATE_STATE;
+    		//bigDriftTime = 0;
+    		//recent_rate=0.0;
+    		staticDriftTime = 0;
+      }
+    	else
+    	{
+    		staticDriftTime++;
+    	}
+    	
+    	if(staticDriftTime >= 3) //连续3次出现静态漂移值，则退出Rotate状态
+    	{
+    		currentState = HUGE_ACCELERATE_STATE;
+    	}
     }
     
-    if(bigDriftTime > 0 && oldState==ROTATE_STATE) //假如前一次循环已经是Rotate状态，则bingDriftTime>0就继续进入Rotate状态
-    {
-    	currentState = ROTATE_STATE;
-    	bigDriftTime = 0;
-    	recent_rate=0.0;
+    else //假如前一次循环不是Rotate状态，则bigDriftTime>=4时进入Rotate状态
+    { 
+	    	if( bigDriftTime==3 )
+	    	{
+	    		if(newRate<=-0.8 || newRate>=0.8)
+	    		{
+	    			bigDriftTime++;
+	    		  recent_rate += newRate_forRotate;
+	    		}
+	    		else
+	    		{
+	    			bigDriftTime=0;
+	    		  recent_rate=0.0;
+	    		}
+	    	}
+    	
+	    	if( bigDriftTime==2 )
+	    	{
+	    		if(newRate<=-0.7 || newRate>=0.7)
+	    		{
+	    			bigDriftTime++;
+	    		  recent_rate += newRate_forRotate;
+	    		}
+	    		else
+	    		{
+	    			bigDriftTime=0;
+	    		  recent_rate=0.0;
+	    		}
+	    	}
+    	
+	    	if( bigDriftTime==1 )
+	    	{
+	    		if(newRate<=-0.6 || newRate>=0.6)
+	    		{
+	    			bigDriftTime++;
+	    		  recent_rate += newRate_forRotate;
+	    		}
+	    		else
+	    		{
+	    			bigDriftTime=0;
+	    		  recent_rate=0.0;
+	    		}
+	    	}
+    	
+	    	if( bigDriftTime==0 )
+	    	{
+	    		if(newRate<=-0.5 || newRate>=0.5)
+	    		{
+	    			bigDriftTime++;
+	    		  recent_rate += newRate_forRotate;
+	    		}
+	    		else
+	    		{
+	    			bigDriftTime=0;
+	    		  recent_rate=0.0;
+	    		}
+	    	}
+
+	    if(bigDriftTime >=4) 
+	    {
+	    	currentState = ROTATE_STATE;
+	    	bigDriftTime = 0;
+	    	first_rotate_rateplus = recent_rate;
+	    	recent_rate=0.0;
+	    	staticDriftTime = 0;
+	    }
     }
     
-    if(bigDriftTime >=3 && oldState!=ROTATE_STATE) //假如前一次循环不是Rotate状态，则bingDriftTime>=3时进入Rotate状态
-    {
-    	currentState = ROTATE_STATE;
-    	bigDriftTime = 0;
-    	first_rotate_rateplus = recent_rate;
-    	recent_rate=0.0;
-    }
     
     
     //--------------判断是否进入rotate状态代码结束-----------------------
