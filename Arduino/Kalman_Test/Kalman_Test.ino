@@ -9,9 +9,15 @@
 const int GyroSelectPin_1 = 10;
 const int GyroSelectPin_2 = 9;
 const int AccSelectPin = 8;
+int GyroSelectPin = 0;
 
 const int Gyro_1 = 1;
 const int Gyro_2 = 2;
+
+double rate_1 = 0.0;
+double rate_2 = 0.0;
+double abs_rate_1 = 0.0;
+double abs_rate_2 = 0.0;
 
 Kalman bk;
 unsigned long timer;
@@ -73,7 +79,7 @@ void loop()
   //rate = readGyroValue_L3G4200D();
   
   degree = readAccValue_SCA830();
-  rate = readGyroValue_ADXRS453Z();
+  rate = readGyroValue_ADXRS453Z_Comb();
   
   dt = double(micros() - timer)/1000000;
   //pre_degree = pitch + rate*dt;
@@ -350,8 +356,18 @@ double readAccValue_SCA830()
   return angel;
 }
 
-double readGyroValue_ADXRS453Z()
+double readGyroValue_ADXRS453Z(int Gyro)
 {
+  if(Gyro == Gyro_1)
+  {
+    GyroSelectPin = GyroSelectPin_1;
+  }
+
+  if(Gyro == Gyro_2)
+  {
+    GyroSelectPin = GyroSelectPin_2;
+  }
+  
   digitalWrite(GyroSelectPin, LOW);
   byte DATA0_4 = SPI.transfer(READCommand_RATE_4);
   byte DATA0_3 = SPI.transfer(READCommand_RATE_3);
@@ -393,15 +409,43 @@ double readGyroValue_ADXRS453Z()
   return dps;
 }
 
+double readGyroValue_ADXRS453Z_Comb()
+{
+  double tempRate = 0.0;
+  rate_1 = readGyroValue_ADXRS453Z(Gyro_1);
+  rate_2 = readGyroValue_ADXRS453Z(Gyro_2);
+  abs_rate_1 = rate_1;
+  abs_rate_1 = rate_2;
+
+  if(rate_1 < 0)
+  {
+    abs_rate_1 = 0-rate_1;
+  }
+  if(rate_2 < 0)
+  {
+    abs_rate_2 = 0-rate_2;
+  }
+  
+  if(abs_rate_1 > abs_rate_2)
+  {
+    tempRate = rate_2;
+  }
+  else
+  {
+    tempRate = rate_1;
+  }
+  return tempRate;
+}
+
 double calcGyroBasicBias()
 {
   int i=70;
   double basicBias = 0.0;
   while(i>0)
   {
-    basicBias += readGyroValue_ADXRS453Z();
+    basicBias += readGyroValue_ADXRS453Z_Comb();
     i--;
-    delay(1);
+    delay(2);
   }
   basicBias = basicBias/70;
   Serial.print("Basic Bias:");
