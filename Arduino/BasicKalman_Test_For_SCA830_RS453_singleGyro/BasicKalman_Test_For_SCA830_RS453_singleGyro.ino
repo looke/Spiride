@@ -1,24 +1,11 @@
 #include <math.h>
 #include <SPI.h>
-//#include "L3G4200D_Command.h"
-//#include "ADXL345_Command.h"
 #include "SCA830.h"
 #include "ADXRS453Z.h"
-#include "BasicKalman.h"
-//#include "SpirideKalman.h"
+#include "TKJ_Kalman.h"
 const int GyroSelectPin = 10;
-//const int GyroSelectPin_2 = 9;
-const int AccSelectPin = 8;
+const int AccSelectPin = 9;
 
-/*
-const int Gyro_1 = 1;
-const int Gyro_2 = 2;
-
-double rate_1 = 0.0;
-double rate_2 = 0.0;
-double abs_rate_1 = 0.0;
-double abs_rate_2 = 0.0;
-*/
 Kalman bk;
 unsigned long timer;
 unsigned long timer2;
@@ -41,32 +28,27 @@ void setup() {
   //SPI读取初始化
   pinMode(AccSelectPin, OUTPUT);
   pinMode(GyroSelectPin, OUTPUT);
-  //pinMode(GyroSelectPin_2, OUTPUT);
   //SPI读取初始化
   SPI.begin();
   SPI.setBitOrder(MSBFIRST);
   SPI.setClockDivider(SPI_CLOCK_DIV4);
-  //SPI.setDataMode(SPI_MODE3);//L3G4200D
   SPI.setDataMode(SPI_MODE0); //SCA830
   digitalWrite(AccSelectPin, HIGH); //disable the device
   digitalWrite(GyroSelectPin, HIGH); //disable the device
-  //digitalWrite(GyroSelectPin_2, HIGH); //disable the device
+
   delay(200);
-  //setupACC_ADXL345();
-  //setupGyro_L3G4200D();
+
   setupACC_SCA830();
   setupGyro_ADXRS453Z();
-  //setupGyro_ADXRS453Z(Gyro_2);
+
   delay(1000); //give device time to init
 
-  basicBias = calcGyroBasicBias();
-  basicAngle = calcACCBasicAngle();
+  //basicBias = calcGyroBasicBias();
+  //basicAngle = calcACCBasicAngle();
 
   degree = readAccValue_SCA830();
-  bk.setBasicBias(basicBias);
-  //bk.setBasicAngle(basicAngle);
   bk.setAngle(degree);
-  pre_degree=0;
+
   timer = micros();
 }
 
@@ -74,16 +56,11 @@ void loop()
 {
   // put your main code here, to run repeatedly:
   
-
-  //degree = readAccValue_ADXL345();
-  //rate = readGyroValue_L3G4200D();
-  
   degree = readAccValue_SCA830();
   rate = readGyroValue_ADXRS453Z();
-  //rate_1 = readGyroValue_ADXRS453Z(Gyro_1);
-  //rate_2 = readGyroValue_ADXRS453Z(Gyro_2);
+
   dt = double(micros() - timer)/1000000;
-  //pre_degree = pitch + rate*dt;
+
   pitch = bk.getAngle(degree,rate,dt);  // Calculate the angle using the Kalman filter
   timer = micros(); 
 
@@ -91,8 +68,7 @@ void loop()
   bias = bk.getBias();
   K0=bk.getK0();
   K1=bk.getK1();
-  //currentState = bk.getCurrentState();
-  //basicAngle = bk.getBasicAngle();
+
   String outputContent;
 
   char temp[22];
@@ -110,14 +86,11 @@ void loop()
 
   dtostrf(bias, 6, 4, temp);
   String str_bias = String(temp);
-
-  dtostrf(basicAngle, 6, 4, temp);
-  String str_basicAngle = String(temp);
   
   String str_K0 = String(K0);
   String str_K1 = String(K1);
   //String state = String(currentState);
-  outputContent = "degree:"+str_degree + ";rate:" + str_rate + ";dt:" + str_dt + ";pitch:" + str_pitch + ";bias:" + str_bias + ";K0:" + str_K0 + ";K1:" + str_K1;
+  outputContent = "degree:"+str_degree + ";  rate:" + str_rate + ";  dt:" + str_dt + ";  pitch:" + str_pitch + ";  bias:" + str_bias + ";  K0:" + str_K0 + ";  K1:" + str_K1;
   Serial.println(outputContent);
 
 
@@ -164,17 +137,6 @@ void setupACC_SCA830()
 
 void setupGyro_ADXRS453Z()
 {
-  /*
-  if(Gyro == Gyro_1)
-  {
-    GyroSelectPin = GyroSelectPin_1;
-  }
-
-  if(Gyro == Gyro_2)
-  {
-    GyroSelectPin = GyroSelectPin_2;
-  }
-  */
   digitalWrite(GyroSelectPin, LOW);
   byte Start_4 = SPI.transfer(Init_4);
   byte Start_3 = SPI.transfer(Init_3); 
@@ -248,17 +210,6 @@ double readAccValue_SCA830()
 
 double readGyroValue_ADXRS453Z()
 {
-  /*
-  if(Gyro == Gyro_1)
-  {
-    GyroSelectPin = GyroSelectPin_1;
-  }
-
-  if(Gyro == Gyro_2)
-  {
-    GyroSelectPin = GyroSelectPin_2;
-  }
-  */
   digitalWrite(GyroSelectPin, LOW);
   byte DATA0_4 = SPI.transfer(READCommand_RATE_4);
   byte DATA0_3 = SPI.transfer(READCommand_RATE_3);
@@ -299,7 +250,7 @@ double readGyroValue_ADXRS453Z()
   //Serial.print(dps);
   return dps;
 }
-
+/*
 
 double calcGyroBasicBias()
 {
@@ -331,3 +282,4 @@ double calcACCBasicAngle()
   Serial.println(basicAngle,4);
   return basicAngle;
 }
+*/

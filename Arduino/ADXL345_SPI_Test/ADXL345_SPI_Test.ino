@@ -30,7 +30,7 @@ void loop()
   //readAccRegValue(READCommand_DATA_INT_ENABLE);
   //readAccRegValue(READCommand_OFFSET_Y);
   //readAccRegValue(READCommand_OFFSET_Z);
-  readAccXYZValue();
+  readAccXValue();
 }
 
 void setupACC()
@@ -42,7 +42,7 @@ void setupACC()
 
   digitalWrite(AccSelectPin, LOW);
   SPI.transfer(WRITECommand_DATA_FORMAT);
-  SPI.transfer(0x03); //16g range
+  SPI.transfer(0x01); //4g range
   digitalWrite(AccSelectPin, HIGH);
   //Serial.println(reg,BIN);
 }

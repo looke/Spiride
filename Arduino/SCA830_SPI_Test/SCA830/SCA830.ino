@@ -1,7 +1,7 @@
 #include <math.h>
 #include <SPI.h>
 #include "SCA830.h"
-const int AccSelectPin = 8;
+const int AccSelectPin = 9;
 
 void setup() {
   // put your setup code here, to run once:
