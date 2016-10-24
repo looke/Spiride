@@ -2,9 +2,22 @@
 #include <SPI.h>
 #include "SCA830.h"
 #include "ADXRS453Z.h"
-#include "TKJ_Kalman.h"
+//#include "TKJ_Kalman.h"
+#include "BasicKalman.h"
 const int GyroSelectPin = 10;
 const int AccSelectPin = 9;
+
+int OnOffState = 0; //0:OFF,1:ON
+const int OffState = 0;
+const int OnState = 1;
+int OldState = OnState;
+
+int isPrintMark = 0; //0:None else:print
+
+int oldPrint = 2;
+const int noPrint = 0;
+const int printStart = 1;
+const int printEnd = 2;
 
 Kalman bk;
 unsigned long timer;
@@ -25,6 +38,11 @@ int currentState;
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
+
+  //添加中断
+  attachInterrupt(0, OnOffStateChange, RISING);
+  attachInterrupt(1, PrintMark, RISING);
+  
   //SPI读取初始化
   pinMode(AccSelectPin, OUTPUT);
   pinMode(GyroSelectPin, OUTPUT);
@@ -45,53 +63,100 @@ void setup() {
 
   //basicBias = calcGyroBasicBias();
   //basicAngle = calcACCBasicAngle();
-
   degree = readAccValue_SCA830();
   bk.setAngle(degree);
-
   timer = micros();
+  
 }
 
 void loop() 
 {
   // put your main code here, to run repeatedly:
+  if(OnOffState == OffState)//关闭状态下什么也不做，仅初始化Kalman Filter
+  {
+    
+    if(OldState == OnState)
+    {
+      //第一次进入OFF状态，输出打印信息
+      Serial.println("Test OFF!");
+    }
+    OldState = OffState;
+    delay(1000);
+  }
+  else if (OnOffState == OnState) //开启状态下持续输出角度数据
+  {
+    if(OldState == OffState)
+    {
+      //首次进入OnState，根据当前状态初始化Kalman滤波器
+      //加入倒计时
+      Serial.println("3 Seconds to start!");
+      delay(1000);
+      Serial.println("2 Seconds to start!");
+      delay(1000);
+      Serial.println("1 Seconds to start!");
+      delay(1000);
+      Serial.println("Test Start!");
+      degree = readAccValue_SCA830();
+      bk.setAngle(degree);
+      timer = micros();
+    }
+    degree = readAccValue_SCA830();
+    rate = readGyroValue_ADXRS453Z();
+
+    dt = double(micros() - timer)/1000000;
+
+    pitch = bk.getAngle(degree,rate,dt);  // Calculate the angle using the Kalman filter
+    timer = micros(); 
+
   
-  degree = readAccValue_SCA830();
-  rate = readGyroValue_ADXRS453Z();
+    bias = bk.getBias();
+    K0=bk.getK0();
+    K1=bk.getK1();
 
-  dt = double(micros() - timer)/1000000;
+    String outputContent;
 
-  pitch = bk.getAngle(degree,rate,dt);  // Calculate the angle using the Kalman filter
-  timer = micros(); 
+    char temp[22];
+    dtostrf(degree, 6, 4, temp); 
+    String str_degree = String(temp);
 
+    dtostrf(rate, 6, 4, temp); 
+    String str_rate = String(temp);
   
-  bias = bk.getBias();
-  K0=bk.getK0();
-  K1=bk.getK1();
+    dtostrf(dt, 6, 4, temp);
+    String str_dt = String(temp);
 
-  String outputContent;
+    dtostrf(pitch, 6, 4, temp);
+    String str_pitch = String(temp);
 
-  char temp[22];
-  dtostrf(degree, 6, 4, temp); 
-  String str_degree = String(temp);
-
-  dtostrf(rate, 6, 4, temp); 
-  String str_rate = String(temp);
+    dtostrf(bias, 6, 4, temp);
+    String str_bias = String(temp);
   
-  dtostrf(dt, 6, 4, temp);
-  String str_dt = String(temp);
-
-  dtostrf(pitch, 6, 4, temp);
-  String str_pitch = String(temp);
-
-  dtostrf(bias, 6, 4, temp);
-  String str_bias = String(temp);
+    String str_K0 = String(K0);
+    String str_K1 = String(K1);
+    //String state = String(currentState);
+    //outputContent = "degree:"+str_degree + ";  pitch:" + str_pitch + ";  rate:" + str_rate + ";  dt:" + str_dt +  ";  bias:" + str_bias + ";  K0:" + str_K0 + ";  K1:" + str_K1;
+    
+    
+    if(isPrintMark == noPrint)
+    {
+      outputContent = "degree:"+str_degree + ";  pitch:" + str_pitch + ";  rate:" + str_rate + ";  dt:" + str_dt  ;
+    }
+    else if(isPrintMark == printStart)
+    {
+      outputContent = "***Start*** degree:"+str_degree + ";  pitch:" + str_pitch + ";  rate:" + str_rate + ";  dt:" + str_dt  ;
+      isPrintMark = 0;
+      oldPrint = printStart;
+    }
+    else if (isPrintMark == printEnd)
+    {
+      outputContent = "****End***** degree:"+str_degree + ";  pitch:" + str_pitch + ";  rate:" + str_rate + ";  dt:" + str_dt  ;
+      isPrintMark = 0;
+      oldPrint = printEnd;
+    }
+    Serial.println(outputContent);
+    OldState = OnState;
+  }
   
-  String str_K0 = String(K0);
-  String str_K1 = String(K1);
-  //String state = String(currentState);
-  outputContent = "degree:"+str_degree + ";  rate:" + str_rate + ";  dt:" + str_dt + ";  pitch:" + str_pitch + ";  bias:" + str_bias + ";  K0:" + str_K0 + ";  K1:" + str_K1;
-  Serial.println(outputContent);
 
 
   /*
@@ -283,3 +348,29 @@ double calcACCBasicAngle()
   return basicAngle;
 }
 */
+
+void OnOffStateChange()
+{
+  if(OnOffState == OffState)//关闭状态下，切换到开启状态
+  {
+    OnOffState = OnState;
+    //Serial.println("Test Start!");
+  }
+  else if (OnOffState == OnState) //开启状态下，切换到关闭状态
+  {
+    OnOffState = OffState;
+    //Serial.println("Test OFF!");
+  }
+}
+
+void PrintMark()
+{
+  if(OnOffState == OnState && oldPrint == printStart)
+  {
+    isPrintMark = printEnd;
+  }
+  else if(OnOffState == OnState && oldPrint == printEnd)
+  {
+    isPrintMark = printStart;
+  }
+}

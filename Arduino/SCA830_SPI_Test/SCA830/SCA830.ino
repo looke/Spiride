@@ -71,6 +71,6 @@ void loop() {
   Serial.print(x);
   Serial.print("\t");
   Serial.print("Angel:");
-  Serial.println(angel);
+  Serial.println(angel,4);
   delay(10);
 }

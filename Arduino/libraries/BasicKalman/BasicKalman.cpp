@@ -46,8 +46,10 @@ float Kalman::getAngle(float newAngle, float newRate, float dt) {
     // Update xhat - Project the state ahead
     
     //Multi-State Kalman
-    float currentState = STATIC_STATE;
-    float y = -1;
+    //float currentState = STATIC_STATE;
+    //float y = newAngle - angle;;
+    
+    /*
     //First: check boundary condition
     if(newAngle >= 27 || newAngle<=-27)
     {
@@ -77,13 +79,13 @@ float Kalman::getAngle(float newAngle, float newRate, float dt) {
     {
     	currentState = ROTATE_STATE;
     }
-    
+    */
     /* Step 1 */
-    //rate = newRate - bias;
-    //angle += dt * rate;
+    rate = newRate - bias;
+    angle += dt * rate;
     
-    float rate_afterBias = newRate - bias;
-    float angle_temp = angle + dt * rate_afterBias;
+    //float rate_afterBias = newRate - bias;
+    //float angle_temp = angle + dt * rate_afterBias;
 
     // Update estimation error covariance - Project the error covariance ahead
     /* Step 2 */
@@ -103,15 +105,15 @@ float Kalman::getAngle(float newAngle, float newRate, float dt) {
 
     // Calculate angle and bias - Update estimate with measurement zk (newAngle)
     /* Step 3 */
-    //float y = newAngle - angle; // Angle difference
+    float y = newAngle - angle; // Angle difference
     
-    if(y!=0) //This means the boundary condition has passed.
-    {
-    	y = newAngle - angle_temp;
-    }
+    ///if(y!=0) //This means the boundary condition has passed.
+    //{
+    //	y = newAngle - angle_temp;
+    //}
     
     //different y has different ratio for new bias and new angle
-    
+    /*
     if(y<=0.5 && y >= -0.5)  //y in [-0.5, 0.5] use the default Kalman algorithm to calc bias and angle
     {
     	//angle += K[0] * y;
@@ -125,35 +127,35 @@ float Kalman::getAngle(float newAngle, float newRate, float dt) {
     	angle = angle + dt * rate;
 
     }
+    */
     
     
-    /*
     if(y>=10 || y<=-10) //
     {
-    	 angle += K[0] * y/80;
-       bias += K[1] * y/80;
+    	 angle += K[0] * y/100;
+       bias += K[1] * y/100;
     }
     else if((y>=5 && y<10) || (y<=-5 && y>-10))
     {
-    	 angle += K[0] * y/50;
-    	 bias += K[1] * y/50;
+    	 angle += K[0] * y/70;
+    	 bias += K[1] * y/70;
     }
     else if((y>=2 && y<5) || (y<=-2 && y>-5))
     {
-    	 angle += K[0] * y/20;
-    	 bias += K[1] * y/20;
+    	 angle += K[0] * y/45;
+    	 bias += K[1] * y/45;
     }
     else if((y>=1 && y<2) || (y<=-1 && y>-2))
     {
-    	 angle += K[0] * y/10;
-    	 bias += K[1] * y/10;
+    	 angle += K[0] * y/18;
+    	 bias += K[1] * y/18;
     }
     else if((y>=0 && y<1) || (y<=0 && y>-1))
     {
-    	 angle += K[0] * y/7;
-    	 bias += K[1] * y/7;
+    	 angle += K[0] * y;
+    	 bias += K[1] * y;
     }
-    */
+    
     /* Step 6 */
     //angle += K[0] * y;
     //bias += K[1] * y;
