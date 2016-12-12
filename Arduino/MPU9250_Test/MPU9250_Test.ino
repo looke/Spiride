@@ -1,24 +1,36 @@
 #include <math.h>
 #include <SPI.h>
 #include "MPU9250.h"
+#include "LowPassFilter1Order.h"
 const int MagSelectPin = 10;
 
 boolean isMagNormalized = false;
-int Mag_X_Max = 270;
-int Mag_X_Min = -296;
-int Mag_X_Range = 566;
-int Mag_X_ZP = 283;
+float Mag_X_Max = 160.43;
+float Mag_X_Min = -245.07;
+float Mag_X_Range = 405.5;
+float Mag_X_ZP = 202.75;
 
-int Mag_Y_Max = 396;
-int Mag_Y_Min = -158;
-int Mag_Y_Range = 554;
-int Mag_Y_ZP = 277;
+float Mag_Y_Max = 291.9;
+float Mag_Y_Min = -138.4;
+float Mag_Y_Range = 430.3;
+float Mag_Y_ZP = 215.15;
 
-int Mag_Z_Max = 175;
-int Mag_Z_Min = -389;
-int Mag_Z_Range = 564;
-int Mag_Z_ZP = 282;
+float Mag_Z_Max = 69.32;
+float Mag_Z_Min = -347.07;
+float Mag_Z_Range = 416.32;
+float Mag_Z_ZP = 208.16;
 
+LowPassFilter1Order filter_acc_x(0.15);
+LowPassFilter1Order filter_acc_y(0.15);
+LowPassFilter1Order filter_acc_z(0.15);
+
+LowPassFilter1Order filter_mag_x(0.15);
+LowPassFilter1Order filter_mag_y(0.15);
+LowPassFilter1Order filter_mag_z(0.15);
+
+LowPassFilter1Order filter_mag_max_x(0.15);
+LowPassFilter1Order filter_mag_max_y(0.15);
+LowPassFilter1Order filter_mag_max_z(0.15);
 
 void setup() {
   // put your setup code here, to run once:
@@ -54,9 +66,13 @@ void loop() {
   //read_WHO_AM_I();
 
   //Read Acc Data from 9250 by SPI
-  //Mag_Z_Normalization();
-
+  //Mag_Z_Positive_Normalization();
+  //Mag_Z_Negative_Normalization();
+  //Mag_Y_Positive_Normalization();
+  //Mag_Y_Negative_Normalization();
   //read_Gyro_Data();
+  //Mag_X_Positive_Normalization();
+  //Mag_X_Negative_Normalization();
   read_Mag_Data();
   //Serial.println("***********************************************************");
   
@@ -354,18 +370,21 @@ void read_Mag_Data()
   short int y = ((Y_MSB << 8) | Y_LSB);
   short int z = ((Z_MSB << 8) | Z_LSB);
 
-  double x_gauss = (double)x*0.0015;
-  double y_gauss = (double)y*0.0015;
-  double z_gauss = (double)z*0.0015;
+  //double x_gauss = (double)x*0.0015;
+  //double y_gauss = (double)y*0.0015;
+  //double z_gauss = (double)z*0.0015;
 
   float x_normal = x-Mag_X_Min;
   x_normal = x_normal/Mag_X_ZP -1;
+  float filtered_x_normal = filter_mag_x.apply(x_normal);
   
   float y_normal = y-Mag_Y_Min;
   y_normal = y_normal/Mag_Y_ZP -1;
+  float filtered_y_normal = filter_mag_y.apply(y_normal);
   
   float z_normal = z-Mag_Z_Min;
   z_normal = z_normal/Mag_Z_ZP -1;
+  float filtered_z_normal = filter_mag_z.apply(z_normal);
   
   //Read Acc for reference
   digitalWrite(MagSelectPin, LOW);
@@ -384,20 +403,27 @@ void read_Mag_Data()
   
 
   
-  Serial.print("Mag East:");
-  Serial.print(y_normal);
+  //Serial.print("East:");
+  //Serial.print(y_normal);
+  //Serial.print("\t");
+  Serial.print("F East:");
+  Serial.print(filtered_y_normal);
+  Serial.print("\t");
+
+  //Serial.print("North:");
+  //Serial.print(x_normal);
+  //Serial.print("\t");
+  Serial.print("F North:");
+  Serial.print(filtered_x_normal);
+  Serial.print("\t");
+
+  //Serial.print("Sky:");
+  //Serial.print(z_normal);
+  //Serial.print("\t");
+  Serial.print("F Sky:");
+  Serial.print(filtered_z_normal);
   Serial.print("\t");
   
-
-  Serial.print("Mag North:");
-  Serial.print(x_normal);
-  Serial.print("\t");
-  
-
-  Serial.print("Mag Sky:");
-  Serial.print(z_normal);
-  Serial.print("\t");
-
   Serial.print("X acc:");
   Serial.print(acc_x);
   Serial.print("\t");
@@ -411,7 +437,7 @@ void read_Mag_Data()
   
 }
 
-void Mag_X_Normalization()
+void Mag_X_Positive_Normalization()
 {
     int error_x_num = 0;
     //Read Mag data from AK8930 by 9250 I2C Master
@@ -430,26 +456,7 @@ void Mag_X_Normalization()
     short int x = ((X_MSB << 8) | X_LSB);
     short int y = ((Y_MSB << 8) | Y_LSB);
     short int z = ((Z_MSB << 8) | Z_LSB);
-    if(x > 400)
-    {
-      x = 0;
-      error_x_num++;
-    }
-
-    if(x < -400)
-    {
-      x = 0;
-      error_x_num++;
-    }
-    
-    if(x > Mag_X_Max)
-    {
-      Mag_X_Max = x;
-    }
-    if(x < Mag_X_Min)
-    {
-      Mag_X_Min = x;
-    }
+    float filtered_x = filter_mag_x.apply(x);
     
     //Read ACC data for Reference
     digitalWrite(MagSelectPin, LOW);
@@ -458,31 +465,38 @@ void Mag_X_Normalization()
     byte acc_xl = SPI.transfer(0xFF);
     byte acc_yh = SPI.transfer(0xFF);
     byte acc_yl = SPI.transfer(0xFF);
+    byte acc_zh = SPI.transfer(0xFF);
+    byte acc_zl = SPI.transfer(0xFF);
     digitalWrite(MagSelectPin, HIGH);
     short int acc_x = ((acc_xh << 8) | acc_xl);
-    short int acc_y = ((acc_yh << 8) | acc_yl);
+    short int acc_z = ((acc_zh << 8) | acc_zl);
+    
+    float filtered_acc_z = filter_acc_z.apply(acc_z);
+    float filtered_acc_x = filter_acc_x.apply(acc_x);
 
+    if(-10<filtered_acc_z && filtered_acc_z<10 && -10<filtered_acc_x && filtered_acc_x<10)
+    {
+      Mag_X_Max = filtered_x;
+    }
+    
     Serial.print("ACC_X:");
     Serial.print("\t");
-    Serial.print(acc_x);
+    Serial.print(filtered_acc_x);
     Serial.print("\t");
-    Serial.print("ACC_Y:");
+    Serial.print("ACC_Z:");
     Serial.print("\t");
-    Serial.print(acc_y);
+    Serial.print(filtered_acc_z);
+    Serial.print("\t");
+    Serial.print("X Current:");
+    Serial.print(filtered_x);
     Serial.print("\t");
     Serial.print("X Max:");
-    Serial.print(Mag_X_Max);
-    Serial.print("\t");
-    Serial.print("X Min:");
-    Serial.print(Mag_X_Min);
-    Serial.print("\t");
-    Serial.print("X ERROR NUMBER:");
-    Serial.println(error_x_num);
+    Serial.println(Mag_X_Max);
 }
 
-void Mag_Y_Normalization()
+void Mag_X_Negative_Normalization()
 {
-    int error_y_num = 0;
+    //int error_x_num = 0;
     //Read Mag data from AK8930 by 9250 I2C Master
     digitalWrite(MagSelectPin, LOW);
     SPI.transfer(MPU9250_REG_EXT_SENS_DATA_00|MPU9250_SPI_READ_MASK);
@@ -499,26 +513,7 @@ void Mag_Y_Normalization()
     short int x = ((X_MSB << 8) | X_LSB);
     short int y = ((Y_MSB << 8) | Y_LSB);
     short int z = ((Z_MSB << 8) | Z_LSB);
-    if(y > 450)
-    {
-      y = 0;
-      error_y_num++;
-    }
-
-    if(y < -400)
-    {
-      y = 0;
-      error_y_num++;
-    }
-    
-    if(y > Mag_Y_Max)
-    {
-      Mag_Y_Max = y;
-    }
-    if(y < Mag_Y_Min)
-    {
-      Mag_Y_Min = y;
-    }
+    float filtered_x = filter_mag_x.apply(x);
     
     //Read ACC data for Reference
     digitalWrite(MagSelectPin, LOW);
@@ -527,29 +522,154 @@ void Mag_Y_Normalization()
     byte acc_xl = SPI.transfer(0xFF);
     byte acc_yh = SPI.transfer(0xFF);
     byte acc_yl = SPI.transfer(0xFF);
+    byte acc_zh = SPI.transfer(0xFF);
+    byte acc_zl = SPI.transfer(0xFF);
     digitalWrite(MagSelectPin, HIGH);
     short int acc_x = ((acc_xh << 8) | acc_xl);
-    short int acc_y = ((acc_yh << 8) | acc_yl);
+    short int acc_z = ((acc_zh << 8) | acc_zl);
+    
+    float filtered_acc_z = filter_acc_z.apply(acc_z);
+    float filtered_acc_x = filter_acc_x.apply(acc_x);
 
+    if(-10<filtered_acc_z && filtered_acc_z<10 && -10<filtered_acc_x && filtered_acc_x<10)
+    {
+      Mag_X_Min = filtered_x;
+    }
+    
     Serial.print("ACC_X:");
     Serial.print("\t");
-    Serial.print(acc_x);
+    Serial.print(filtered_acc_x);
+    Serial.print("\t");
+    Serial.print("ACC_Z:");
+    Serial.print("\t");
+    Serial.print(filtered_acc_z);
+    Serial.print("\t");
+    Serial.print("X Current:");
+    Serial.print(filtered_x);
+    Serial.print("\t");
+    Serial.print("X Min:");
+    Serial.println(Mag_X_Min);
+}
+
+void Mag_Y_Positive_Normalization()
+{
+    //int error_y_num = 0;
+    //Read Mag data from AK8930 by 9250 I2C Master
+    digitalWrite(MagSelectPin, LOW);
+    SPI.transfer(MPU9250_REG_EXT_SENS_DATA_00|MPU9250_SPI_READ_MASK);
+    byte ST1 = SPI.transfer(0xFF);
+    byte X_LSB = SPI.transfer(0xFF);
+    byte X_MSB = SPI.transfer(0xFF);
+    byte Y_LSB = SPI.transfer(0xFF);
+    byte Y_MSB = SPI.transfer(0xFF);
+    byte Z_LSB = SPI.transfer(0xFF);
+    byte Z_MSB = SPI.transfer(0xFF);
+    byte ST2 = SPI.transfer(0xFF);
+    digitalWrite(MagSelectPin, HIGH);
+
+    short int x = ((X_MSB << 8) | X_LSB);
+    short int y = ((Y_MSB << 8) | Y_LSB);
+    short int z = ((Z_MSB << 8) | Z_LSB);
+
+    float filtered_y = filter_mag_y.apply(y);
+    
+    //Read ACC data for Reference
+    digitalWrite(MagSelectPin, LOW);
+    SPI.transfer(MPU9250_REG_ACCEL_XOUT_H|MPU9250_SPI_READ_MASK);
+    byte acc_xh = SPI.transfer(0xFF);
+    byte acc_xl = SPI.transfer(0xFF);
+    byte acc_yh = SPI.transfer(0xFF);
+    byte acc_yl = SPI.transfer(0xFF);
+    byte acc_zh = SPI.transfer(0xFF);
+    byte acc_zl = SPI.transfer(0xFF);
+    digitalWrite(MagSelectPin, HIGH);
+    short int acc_z = ((acc_zh << 8) | acc_zl);
+    short int acc_y = ((acc_yh << 8) | acc_yl);
+
+    float filtered_acc_z = filter_acc_z.apply(acc_z);
+    float filtered_acc_y = filter_acc_y.apply(acc_y);
+
+    if(-10<filtered_acc_z && filtered_acc_z<10 && -10<filtered_acc_y && filtered_acc_y<10)
+    {
+      Mag_Y_Max = filtered_y;
+    }
+    
+    Serial.print("ACC_Z:");
+    Serial.print("\t");
+    Serial.print(filtered_acc_z);
     Serial.print("\t");
     Serial.print("ACC_Y:");
     Serial.print("\t");
-    Serial.print(acc_y);
+    Serial.print(filtered_acc_y);
+    Serial.print("\t");
+    Serial.print("Current Y:");
+    Serial.print(filtered_y);
     Serial.print("\t");
     Serial.print("Y Max:");
-    Serial.print(Mag_Y_Max);
-    Serial.print("\t");
-    Serial.print("Y Min:");
-    Serial.print(Mag_Y_Min);
-    Serial.print("\t");
-    Serial.print("Y ERROR NUMBER:");
-    Serial.println(error_y_num);
+    Serial.println(Mag_Y_Max);
+    
 }
 
-void Mag_Z_Normalization()
+void Mag_Y_Negative_Normalization()
+{
+    //int error_y_num = 0;
+    //Read Mag data from AK8930 by 9250 I2C Master
+    digitalWrite(MagSelectPin, LOW);
+    SPI.transfer(MPU9250_REG_EXT_SENS_DATA_00|MPU9250_SPI_READ_MASK);
+    byte ST1 = SPI.transfer(0xFF);
+    byte X_LSB = SPI.transfer(0xFF);
+    byte X_MSB = SPI.transfer(0xFF);
+    byte Y_LSB = SPI.transfer(0xFF);
+    byte Y_MSB = SPI.transfer(0xFF);
+    byte Z_LSB = SPI.transfer(0xFF);
+    byte Z_MSB = SPI.transfer(0xFF);
+    byte ST2 = SPI.transfer(0xFF);
+    digitalWrite(MagSelectPin, HIGH);
+
+    short int x = ((X_MSB << 8) | X_LSB);
+    short int y = ((Y_MSB << 8) | Y_LSB);
+    short int z = ((Z_MSB << 8) | Z_LSB);
+
+    float filtered_y = filter_mag_y.apply(y);
+    
+    //Read ACC data for Reference
+    digitalWrite(MagSelectPin, LOW);
+    SPI.transfer(MPU9250_REG_ACCEL_XOUT_H|MPU9250_SPI_READ_MASK);
+    byte acc_xh = SPI.transfer(0xFF);
+    byte acc_xl = SPI.transfer(0xFF);
+    byte acc_yh = SPI.transfer(0xFF);
+    byte acc_yl = SPI.transfer(0xFF);
+    byte acc_zh = SPI.transfer(0xFF);
+    byte acc_zl = SPI.transfer(0xFF);
+    digitalWrite(MagSelectPin, HIGH);
+    short int acc_z = ((acc_zh << 8) | acc_zl);
+    short int acc_y = ((acc_yh << 8) | acc_yl);
+
+    float filtered_acc_z = filter_acc_z.apply(acc_z);
+    float filtered_acc_y = filter_acc_y.apply(acc_y);
+
+    if(-10<filtered_acc_z && filtered_acc_z<10 && -10<filtered_acc_y && filtered_acc_y<10)
+    {
+      Mag_Y_Min = filtered_y;
+    }
+    
+    Serial.print("ACC_Z:");
+    Serial.print("\t");
+    Serial.print(filtered_acc_z);
+    Serial.print("\t");
+    Serial.print("ACC_Y:");
+    Serial.print("\t");
+    Serial.print(filtered_acc_y);
+    Serial.print("\t");
+    Serial.print("Current Y:");
+    Serial.print(filtered_y);
+    Serial.print("\t");
+    Serial.print("Y Min:");
+    Serial.println(Mag_Y_Min);
+    
+}
+
+void Mag_Z_Positive_Normalization()
 {
     int error_z_num = 0;
     //Read Mag data from AK8930 by 9250 I2C Master
@@ -568,26 +688,93 @@ void Mag_Z_Normalization()
     short int x = ((X_MSB << 8) | X_LSB);
     short int y = ((Y_MSB << 8) | Y_LSB);
     short int z = ((Z_MSB << 8) | Z_LSB);
-    if(z > 400)
+
+    float filtered_z = filter_mag_z.apply(z);
+    
+    /*
+    if(filtered_z > 1000)
     {
-      z = 0;
+      filtered_z = 0;
       error_z_num++;
     }
 
-    if(z < -450)
+    if(filtered_z < -1050)
     {
-      z = 0;
+      filtered_z = 0;
       error_z_num++;
     }
     
-    if(z > Mag_Z_Max)
+    
+    if(filtered_z > Mag_Z_Max)
     {
-      Mag_Z_Max = z;
+      Mag_Z_Max = filtered_z;
     }
-    if(z < Mag_Z_Min)
+    if(filtered_z < Mag_Z_Min)
     {
-      Mag_Z_Min = z;
+      Mag_Z_Min = filtered_z;
     }
+    */
+    //Read ACC data for Reference
+    digitalWrite(MagSelectPin, LOW);
+    SPI.transfer(MPU9250_REG_ACCEL_XOUT_H|MPU9250_SPI_READ_MASK);
+    byte acc_xh = SPI.transfer(0xFF);
+    byte acc_xl = SPI.transfer(0xFF);
+    byte acc_yh = SPI.transfer(0xFF);
+    byte acc_yl = SPI.transfer(0xFF);
+    digitalWrite(MagSelectPin, HIGH);
+    short int acc_x = ((acc_xh << 8) | acc_xl);
+    short int acc_y = ((acc_yh << 8) | acc_yl);
+
+    float filtered_acc_x = filter_acc_x.apply(acc_x);
+    float filtered_acc_y = filter_acc_y.apply(acc_y);
+    
+    if(-10<filtered_acc_x && filtered_acc_x<10 && -10<filtered_acc_y && filtered_acc_y<10)
+    {
+      Mag_Z_Max = filtered_z;
+    }
+    Serial.print("ACC_X:");
+    Serial.print("\t");
+    Serial.print(filtered_acc_x);
+    Serial.print("\t");
+    Serial.print("ACC_Y:");
+    Serial.print("\t");
+    Serial.print(filtered_acc_y);
+    Serial.print("\t");
+    Serial.print("Z Current:");
+    Serial.print(filtered_z);
+    Serial.print("\t");
+    Serial.print("Z Max:");
+    Serial.println(Mag_Z_Max);
+    //Serial.print("\t");
+    //Serial.print("Z Min:");
+    //Serial.print(Mag_Z_Min);
+    //Serial.print("\t");
+    //Serial.print("Z ERROR NUMBER:");
+    //Serial.println(error_z_num);
+}
+
+void Mag_Z_Negative_Normalization()
+{
+    int error_z_num = 0;
+    //Read Mag data from AK8930 by 9250 I2C Master
+    digitalWrite(MagSelectPin, LOW);
+    SPI.transfer(MPU9250_REG_EXT_SENS_DATA_00|MPU9250_SPI_READ_MASK);
+    byte ST1 = SPI.transfer(0xFF);
+    byte X_LSB = SPI.transfer(0xFF);
+    byte X_MSB = SPI.transfer(0xFF);
+    byte Y_LSB = SPI.transfer(0xFF);
+    byte Y_MSB = SPI.transfer(0xFF);
+    byte Z_LSB = SPI.transfer(0xFF);
+    byte Z_MSB = SPI.transfer(0xFF);
+    byte ST2 = SPI.transfer(0xFF);
+    digitalWrite(MagSelectPin, HIGH);
+
+    short int x = ((X_MSB << 8) | X_LSB);
+    short int y = ((Y_MSB << 8) | Y_LSB);
+    short int z = ((Z_MSB << 8) | Z_LSB);
+
+    float filtered_z = filter_mag_z.apply(z);
+    
     
     //Read ACC data for Reference
     digitalWrite(MagSelectPin, LOW);
@@ -600,24 +787,35 @@ void Mag_Z_Normalization()
     short int acc_x = ((acc_xh << 8) | acc_xl);
     short int acc_y = ((acc_yh << 8) | acc_yl);
 
+    float filtered_acc_x = filter_acc_x.apply(acc_x);
+    float filtered_acc_y = filter_acc_y.apply(acc_y);
+    
+    if(-10<filtered_acc_x && filtered_acc_x<10 && -10<filtered_acc_y && filtered_acc_y<10)
+    {
+      Mag_Z_Min = filtered_z;
+    }
     Serial.print("ACC_X:");
     Serial.print("\t");
-    Serial.print(acc_x);
+    Serial.print(filtered_acc_x);
     Serial.print("\t");
     Serial.print("ACC_Y:");
     Serial.print("\t");
-    Serial.print(acc_y);
+    Serial.print(filtered_acc_y);
     Serial.print("\t");
-    Serial.print("Z Max:");
-    Serial.print(Mag_Z_Max);
+    Serial.print("Z Current:");
+    Serial.print(filtered_z);
     Serial.print("\t");
     Serial.print("Z Min:");
-    Serial.print(Mag_Z_Min);
-    Serial.print("\t");
-    Serial.print("Z ERROR NUMBER:");
-    Serial.println(error_z_num);
+    Serial.println(Mag_Z_Min);
+    //Serial.print("\t");
+    //Serial.print("Z Min:");
+    //Serial.print(Mag_Z_Min);
+    //Serial.print("\t");
+    //Serial.print("Z ERROR NUMBER:");
+    //Serial.println(error_z_num);
 }
 
+/*
 void Mag_Normalization()
 {
     //Read Mag data from AK8930 by 9250 I2C Master
@@ -760,7 +958,7 @@ void Mag_Normalization()
      Serial.print("\t");
      Serial.print("Z Min:");
      Serial.println(Mag_Z_Min);
-     */
+     
      delay(10);
   }
 
@@ -773,7 +971,7 @@ void Mag_Normalization()
   Mag_Z_Range = Mag_Z_Max- Mag_Z_Min;
   Mag_Z_ZP = Mag_Z_Range/2;
 }
-
+*/
 void showNormalizationResult()
 {
   Serial.print("X Max:");
