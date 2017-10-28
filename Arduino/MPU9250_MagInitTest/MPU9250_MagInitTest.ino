@@ -9,16 +9,33 @@ float Mag_X_Max = 160.43;
 float Mag_X_Min = -245.07;
 float Mag_X_Range = 405.5;
 float Mag_X_ZP = 202.75;
+short int Mag_X_Original = 0;
 
 float Mag_Y_Max = 291.9;
 float Mag_Y_Min = -138.4;
 float Mag_Y_Range = 430.3;
 float Mag_Y_ZP = 215.15;
+short int Mag_Y_Original = 0;
 
 float Mag_Z_Max = 69.32;
 float Mag_Z_Min = -347.07;
 float Mag_Z_Range = 416.32;
 float Mag_Z_ZP = 208.16;
+short int Mag_Z_Original = 0;
+
+/////------Mag init control------///////
+int availableNumberMax = 100;
+
+int acc_threshold = 30;
+int acc_horizontal_point = 0;
+int acc_upperLimit = acc_horizontal_point + acc_threshold;
+int acc_lowerLimit = acc_horizontal_point - acc_threshold;
+
+short int acc_read_x;
+short int acc_read_y;
+short int acc_read_z;
+
+///////////////////////////////////////
 
 LowPassFilter1Order filter_acc_x(0.15);
 LowPassFilter1Order filter_acc_y(0.15);
@@ -32,20 +49,25 @@ LowPassFilter1Order filter_mag_max_x(0.15);
 LowPassFilter1Order filter_mag_max_y(0.15);
 LowPassFilter1Order filter_mag_max_z(0.15);
 
+LowPassFilter1Order filter_mag_init(0.15);
+
+
 void setup() {
   // put your setup code here, to run once:
   Serial.begin(115200);
-  
   //SPI读取初始化
   pinMode(MagSelectPin, OUTPUT);
   SPI.begin();
   SPI.setBitOrder(MSBFIRST);
   SPI.setClockDivider(SPI_CLOCK_DIV16);
   SPI.setDataMode(SPI_MODE0);
-
+  filter_mag_init.resetFilter();
   delay(200);
   setupMag();
   delay(1000);
+
+  //Serial.println("***********************Start Mag Init X************************************");
+  //init_Mag_axis_X();
 
 /*
   Serial.println("Mag Normalization X Start.");
@@ -74,7 +96,8 @@ void loop() {
   //read_Gyro_Data();
   //Mag_X_Positive_Normalization();
   //Mag_X_Negative_Normalization();
-  read_Mag_Data();
+  //read_Mag_Data_Normalized();
+  read_Mag_Data_Original();
   //Serial.println("***********************************************************");
   
   delay(10);
@@ -152,6 +175,7 @@ void setupMag()
   //readRegister(MPU9250_REG_EXT_SENS_DATA_00, "MPU9250_REG_EXT_SENS_DATA_00");
 
   
+  
   //check CNTL1
   writeRegister(MPU9250_REG_I2C_SLV0_ADDR, MPU9250_I2C_MAG_ADDRESS|MPU9250_SPI_READ_MASK);
   //AK8963 Reg address to read MAG_REG_CNTL1
@@ -182,6 +206,8 @@ void setupMag()
   //writeRegister(MPU9250_REG_I2C_SLV0_CTRL,0x00); 
   //readRegister(MPU9250_REG_I2C_SLV0_CTRL, "MPU9250_REG_I2C_SLV0_CTRL");
 
+
+  
   //delay(10);
   //set slove0 addr to write
   //writeRegister(MPU9250_REG_I2C_SLV0_ADDR, MPU9250_I2C_MAG_ADDRESS);
@@ -286,7 +312,9 @@ void testConnectionToAK8963()
     Serial.println("AK8963 Offline!");
   }
 }
-
+//-----------------------------------------------------------------
+// read sensor data
+//-----------------------------------------------------------------
 void read_ACC_Data()
 {
   digitalWrite(MagSelectPin, LOW);
@@ -299,23 +327,36 @@ void read_ACC_Data()
   byte zl = SPI.transfer(0xFF);
   digitalWrite(MagSelectPin, HIGH);
   
+  acc_read_x = ((xh << 8) | xl);
+  acc_read_y = ((yh << 8) | yl);
+  acc_read_z = ((zh << 8) | zl);
+  
   Serial.print("ACC XH:");
   Serial.print(xh,BIN);
   Serial.print("\t");
   Serial.print("ACC XL:");
-  Serial.println(xl,BIN);
-
+  Serial.print(xl,BIN);
+  Serial.print("\t");
+  Serial.print("acc_read_x:");
+  Serial.println(acc_read_x);
+  
   Serial.print("ACC YH:");
   Serial.print(yh,BIN);
   Serial.print("\t");
   Serial.print("ACC YL:");
-  Serial.println(yl,BIN);
-
+  Serial.print(yl,BIN);
+  Serial.print("\t");
+  Serial.print("acc_read_y:");
+  Serial.println(acc_read_y);
+  
   Serial.print("ACC ZH:");
   Serial.print(zh,BIN);
   Serial.print("\t");
   Serial.print("ACC ZL:");
-  Serial.println(zl,BIN);
+  Serial.print(zl,BIN);
+  Serial.print("\t");
+  Serial.print("acc_read_z:");
+  Serial.println(acc_read_z);
 }
 
 void read_Gyro_Data()
@@ -348,8 +389,95 @@ void read_Gyro_Data()
   Serial.print("Gyro ZL:");
   Serial.println(zl,BIN);
 }
+void read_Mag_Data_Original()
+{
+  //Read Mag data from AK8930 by 9250 I2C Master
+  digitalWrite(MagSelectPin, LOW);
+  SPI.transfer(MPU9250_REG_EXT_SENS_DATA_00|MPU9250_SPI_READ_MASK);
+  byte ST1 = SPI.transfer(0xFF);
+  byte X_LSB = SPI.transfer(0xFF);
+  byte X_MSB = SPI.transfer(0xFF);
+  byte Y_LSB = SPI.transfer(0xFF);
+  byte Y_MSB = SPI.transfer(0xFF);
+  byte Z_LSB = SPI.transfer(0xFF);
+  byte Z_MSB = SPI.transfer(0xFF);
+  byte ST2 = SPI.transfer(0xFF);
+  digitalWrite(MagSelectPin, HIGH);
+  
+  Mag_X_Original = ((X_MSB << 8) | X_LSB);
+  Mag_Y_Original = ((Y_MSB << 8) | Y_LSB);
+  Mag_Z_Original = ((Z_MSB << 8) | Z_LSB);
 
-void read_Mag_Data()
+  //Serial.print("X:");
+  Serial.print(Mag_X_Original);
+  Serial.print(" ");
+  //Serial.print("Y:");
+  Serial.print(Mag_Y_Original);
+  Serial.print(" ");
+  //Serial.print("Z:");
+  Serial.println(Mag_Z_Original);
+}
+
+boolean isSensorHorizontal_x_vertical(short int acc_x, short int acc_y, short int acc_z)
+{
+  Serial.print("isSensorHorizontal_x_vertical acc_y:");
+  Serial.println(acc_y);
+  if(acc_y <= acc_upperLimit && acc_lowerLimit <= acc_y && acc_z <= acc_upperLimit && acc_lowerLimit <= acc_z)
+  {
+    Serial.println("isSensorHorizontal_x_vertical true");
+    return (true);
+  }
+  else
+  {
+    return (false);
+  }
+}
+
+boolean isSensorHorizontal_y_vertical(short int acc_x, short int acc_y, short int acc_z)
+{
+  if(acc_x <= acc_upperLimit && acc_lowerLimit <= acc_x && acc_z <= acc_upperLimit && acc_lowerLimit <= acc_z)
+    return (true);
+  else
+    return (false);
+}
+
+boolean isSensorHorizontal_z_vertical(short int acc_x, short int acc_y, short int acc_z)
+{
+  if(acc_x <= acc_upperLimit && acc_lowerLimit <= acc_x && acc_y <= acc_upperLimit && acc_lowerLimit <= acc_y)
+    return (true);
+  else
+    return (false);
+}
+
+//2017.2.11
+float init_Mag_axis_X()
+{
+  filter_mag_init.resetFilter();
+  int availableNumber = 0;
+  float mag_x_value;
+
+  while (availableNumber < availableNumberMax)
+  {
+    read_Mag_Data_Original();
+    read_ACC_Data();
+    boolean isDataAvailable = isSensorHorizontal_x_vertical(acc_read_x, acc_read_y, acc_read_z);
+    Serial.print("isDataAvailable:");
+    Serial.println(isDataAvailable);
+    
+    if(isDataAvailable)
+    {
+      availableNumber++;
+      mag_x_value = filter_mag_init.apply(Mag_X_Original);
+      Serial.print("New mag data recorded. Now we have:");
+      Serial.println(availableNumber);
+    }
+    delay(2);
+  }
+  return (mag_x_value);
+}
+
+
+void read_Mag_Data_Normalized()
 {
   //Read Mag data from AK8930 by 9250 I2C Master
   digitalWrite(MagSelectPin, LOW);

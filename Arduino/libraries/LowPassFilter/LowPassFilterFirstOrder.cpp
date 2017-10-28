@@ -1,23 +1,23 @@
 /*
- * LowPassFilter1Order.cpp
+ * LowPassFilterFirstOrder.cpp
  *
  *  Created on: 2016Äê12ÔÂ3ÈÕ
  *      Author: looke
  */
 
-#include "LowPassFilter1Order.h"
+#include "LowPassFilterFirstOrder.h"
 
 #include "math.h"
 
 #define defaultA 0.15f
 
-LowPassFilter1Order::LowPassFilter1Order()
+LowPassFilterFirstOrder::LowPassFilterFirstOrder()
 {
 	this->a = defaultA;
 	Y_0 = 0;
 };
 
-LowPassFilter1Order::LowPassFilter1Order(float initA)
+LowPassFilterFirstOrder::LowPassFilterFirstOrder(double initA)
 {
 	if(initA > 0 && initA < 1)
 	{
@@ -30,7 +30,7 @@ LowPassFilter1Order::LowPassFilter1Order(float initA)
 	Y_0 = 0;
 };
 
-void LowPassFilter1Order::setFilter(float newA)
+void LowPassFilterFirstOrder::setFilter(double newA)
 {
 	if(newA > 0 && newA < 1)
 	{
@@ -38,7 +38,7 @@ void LowPassFilter1Order::setFilter(float newA)
 	}
 };
 
-void LowPassFilter1Order::resetFilter(float newA)
+void LowPassFilterFirstOrder::resetFilter(double newA)
 {
 	if(newA > 0 && newA < 1)
 	{
@@ -47,13 +47,13 @@ void LowPassFilter1Order::resetFilter(float newA)
 	Y_0 = 0;
 };
 
-void LowPassFilter1Order::resetFilter()
+void LowPassFilterFirstOrder::resetFilter()
 {
 	resetFilter(defaultA);
 };
 
 
-float LowPassFilter1Order::apply(float in)
+double LowPassFilterFirstOrder::apply(double in)
 {
 	float temp = (1-a)*this->Y_0;
 	if(!isfinite(temp))

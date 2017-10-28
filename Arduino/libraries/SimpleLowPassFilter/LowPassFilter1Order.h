@@ -16,7 +16,8 @@ public:
 	LowPassFilter1Order(float initA);
 	float apply(float in);
 	void setFilter(float newA);
-
+	void resetFilter();
+	void resetFilter(float newA);
 private:
 	float a;
 	float Y_0;
